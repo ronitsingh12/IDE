@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import Client from '../pages/Client';
@@ -15,6 +16,8 @@ const EditorPage = () => {
     const [showPopup, setShowPopup] = useState(false);
     const [fileName, setFileName] = useState('');
     const hasJoinedRef = useRef(false); // Ref to track if the user has joined
+    const [messages, setMessages] = useState([]); // New state for messages
+    const [message, setMessage] = useState(''); // New state for input message
 
     useEffect(() => {
         const init = async () => {
@@ -55,6 +58,14 @@ const EditorPage = () => {
                 socketRef.current.on(ACTIONS.SYNC_CODE, (newContent) => {
                     setContent(newContent);
                 });
+
+                if (socketRef.current) {
+                    socketRef.current.on(ACTIONS.RECEIVE_MESSAGE, (newMessage) => {
+                        console.log('Received message:', newMessage); // Log when message is received
+                        setMessages((prevMessages) => [...prevMessages, newMessage]);
+                    });
+                }
+    
             }
         };
     
@@ -105,6 +116,18 @@ const EditorPage = () => {
         setShowPopup(true);
     };
 
+    const handleSendMessage = () => {
+        if (message.trim() && socketRef.current) {
+            console.log('Sending message:', message); // Log before emitting
+            socketRef.current.emit(ACTIONS.SEND_MESSAGE, {
+                roomId,
+                username: location.state?.username,
+                message,
+            });
+            setMessage(''); // Clear input after sending
+        }
+    };
+
     return (
         <div className="mainWrap">
             <div className="aside">
@@ -119,6 +142,25 @@ const EditorPage = () => {
                         ))}
                     </div>
                 </div>
+
+                <div className="chatSection">
+                    <h3>Chat:</h3>
+                    <div className="chatMessages">
+                        {messages.map((msg, index) => (
+                            <div key={index}>
+                                <strong>{msg.username}</strong>: {msg.message}
+                            </div>
+                        ))}
+                    </div>
+                    <input
+                        type="text"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Type a message..."
+                    />
+                    <button onClick={handleSendMessage}>Send</button>
+                </div>
+
                 <button className="btn copyBtn" onClick={handleCopy}>
                     Copy Workspace ID
                 </button>
@@ -151,8 +193,26 @@ const EditorPage = () => {
                             placeholder="File Name"
                         />
                         <div className="popupButtons">
-                            <button className="saveBtn">Save</button>
-                            <button className="closeBtn" onClick={() => setShowPopup(false)}>Cancel</button>
+                        <button
+    className="saveBtn"
+    onClick={() => {
+      if (fileName.trim()) {
+          const blob = new Blob([content], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${fileName}.txt`; // Save as a .txt file
+          link.click();
+          URL.revokeObjectURL(url); // Clean up the URL object
+          setShowPopup(false); // Close the popup after saving
+      } else {
+          toast.error("Please enter a valid file name.");
+      }
+    }}
+  >
+    Save
+  </button>                            
+  <button className="closeBtn" onClick={() => setShowPopup(false)}>Cancel</button>
                         </div>
                     </div>
                 </div>

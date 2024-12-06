@@ -93,6 +93,12 @@ io.on('connection', (socket) => {
     
         delete userSocketMap[socket.id];
     });
+
+    socket.on(ACTIONS.SEND_MESSAGE, ({ roomId, username, message }) => {
+        const newMessage = { username, message };
+        console.log('Server received message:', newMessage); // Log message on server
+        io.to(roomId).emit(ACTIONS.RECEIVE_MESSAGE, newMessage);
+    });
         
 });
 
